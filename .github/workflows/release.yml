@@ -77,14 +77,18 @@ jobs:
         run: |
           set -euo pipefail
           git add -A
-          git commit \
-            -m "Release because package registries need synchronized version metadata" \
-            -m "Constraint: workflow_dispatch version input is validated before repository mutation" \
-            -m "Confidence: high" \
-            -m "Scope-risk: narrow" \
-            -m "Directive: Dispatch releases from main only; do not publish from dev or feature refs" \
-            -m "Tested: npm test; npm run check; npm run build:types; python -m pytest python/tests; python -m build" \
-            -m "Not-tested: registry publish dry-run"
+          if git diff --cached --quiet; then
+            echo "Version metadata already matches ${RELEASE_VERSION}; tagging current main."
+          else
+            git commit \
+              -m "Release because package registries need synchronized version metadata" \
+              -m "Constraint: workflow_dispatch version input is validated before repository mutation" \
+              -m "Confidence: high" \
+              -m "Scope-risk: narrow" \
+              -m "Directive: Dispatch releases from main only; do not publish from dev or feature refs" \
+              -m "Tested: npm test; npm run check; npm run build:types; python -m pytest python/tests; python -m build" \
+              -m "Not-tested: registry publish dry-run"
+          fi
           git tag "v${RELEASE_VERSION}"
           git push origin HEAD:main
           git push origin "v${RELEASE_VERSION}"
