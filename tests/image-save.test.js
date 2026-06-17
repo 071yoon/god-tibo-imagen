@@ -17,6 +17,49 @@ test('saveImage writes decoded PNG bytes to disk', async () => {
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 });
 
+test('saveImage can resize PNG output for pixel art workflows', async () => {
+  const dir = await makeTempDir();
+  const outputPath = path.join(dir, 'pixel.png');
+  await saveImage({ resultBase64: PNG_BASE64, outputPath, pixelSize: '2x3' });
+
+  const bytes = await fs.readFile(outputPath);
+  assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  assert.equal(bytes.readUInt32BE(16), 2);
+  assert.equal(bytes.readUInt32BE(20), 3);
+});
+
+test('saveImage can apply pixel mode palette cleanup and write a preview', async () => {
+  const dir = await makeTempDir();
+  const outputPath = path.join(dir, 'pixel-mode.png');
+  const result = await saveImage({
+    resultBase64: PNG_BASE64,
+    outputPath,
+    pixelSize: 4,
+    pixelMode: true,
+    pixelPalette: 4,
+    pixelDither: 'bayer2',
+    previewUpscale: 3,
+    returnMetadata: true
+  });
+
+  assert.equal(result.savedPath, outputPath);
+  assert.equal(result.previewPath, path.join(dir, 'pixel-mode.preview.png'));
+  assert.deepEqual(result.pixelMetadata, {
+    width: 4,
+    height: 4,
+    paletteSize: 4,
+    actualPaletteSize: 1,
+    dither: 'bayer2'
+  });
+
+  const bytes = await fs.readFile(outputPath);
+  assert.equal(bytes.readUInt32BE(16), 4);
+  assert.equal(bytes.readUInt32BE(20), 4);
+  const preview = await fs.readFile(result.previewPath);
+  assert.equal(preview.readUInt32BE(16), 12);
+  assert.equal(preview.readUInt32BE(20), 12);
+});
+
 test('saveImage rejects data URLs', async () => {
   const dir = await makeTempDir();
   await assert.rejects(

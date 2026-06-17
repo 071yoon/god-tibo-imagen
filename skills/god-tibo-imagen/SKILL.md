@@ -3,6 +3,8 @@ name: god-tibo-imagen
 description: >-
   Use this skill whenever the user asks to generate, create, render, draw, or
   make an image, picture, illustration, icon, logo, or any other visual asset.
+  It is especially suited for pixel art, game icons, sprites, and retro
+  low-resolution assets.
   Also use it when the user wants to edit, modify, restyle, or combine
   existing images (provide them as inputs). The skill drives the `gti` CLI,
   which uses the user's local Codex ChatGPT authentication to call the
@@ -15,7 +17,8 @@ description: >-
 # god-tibo-imagen
 
 Generate images from text prompts (and optional reference images) by running
-the `gti` CLI.
+the `gti` CLI. For pixel art, prefer `--pixel-mode` with `--pixel-size`,
+`--pixel-palette`, and `--preview-upscale`.
 
 ## How to invoke
 
@@ -57,6 +60,30 @@ Allowed values:
 - `1536x1024`, `2048x1152`, `3840x2160` (landscape)
 - `1024x1536`, `2160x3840` (portrait)
 
+### Pixel output size
+
+Use `--pixel-size <value>` to resize the saved PNG after generation for pixel-art workflows. This does not request unsupported tiny backend canvas sizes; it writes a nearest-neighbor resized final PNG.
+
+```bash
+gti --prompt "32x32 pixel art sword sprite, transparent background" --size 1024x1024 --pixel-size 32 --output ./sword-32.png
+```
+
+### Pixel mode
+
+Use `--pixel-mode` for serious pixel-art output. It adds prompt constraints for crisp square pixels, limited palettes, no anti-aliasing, clean outlines, no double pixels, and smoother stair-step lines, then applies palette cleanup after generation.
+
+```bash
+gti --prompt "cute Korean Joseon-era scholar programmer coding on a laptop" \
+  --size 1024x1024 \
+  --pixel-mode \
+  --pixel-size 128 \
+  --pixel-palette 24 \
+  --preview-upscale 4 \
+  --output ./scholar-programmer.png
+```
+
+Report both `savedPath` and `previewPath` when present. The preview is larger and easier for users to inspect.
+
 ### Dry run
 
 Validate auth and print the request without making a network call.
@@ -80,4 +107,5 @@ gti --prompt "flat blue square icon" --dry-run
 ## After running
 
 `gti` saves the PNG to `--output` and prints a JSON summary that includes
-`savedPath`. Report `savedPath` back to the user.
+`savedPath`. Pixel-mode runs may also include `previewPath` and
+`pixelMetadata`. Report those back to the user when present.

@@ -1,7 +1,8 @@
 # god-tibo-imagen — Agent Skill
 
 Cross-agent Agent Skill that wraps the `god-tibo-imagen` Python SDK / Node.js
-CLI for image generation via Codex's private ChatGPT-authenticated backend.
+CLI for image generation via Codex's private ChatGPT-authenticated backend,
+with first-class pixel-art output options.
 
 This skill follows the [Agent Skills](https://agentskills.io/specification)
 format and is compatible with any coding agent that supports it (Claude Code,
@@ -62,6 +63,24 @@ python skills/god-tibo-imagen/scripts/wrapper.py \
 
 A successful dry run prints a JSON payload with `"mode": "dry-run"` and does
 not perform a live network call.
+
+## Pixel Art
+
+Use `--pixel-mode` for game icons, sprites, and other low-resolution assets.
+
+```bash
+python skills/god-tibo-imagen/scripts/wrapper.py \
+  --prompt "cute Korean Joseon-era scholar programmer coding on a laptop" \
+  --size 1024x1024 \
+  --pixel-mode \
+  --pixel-size 128 \
+  --pixel-palette 24 \
+  --preview-upscale 4 \
+  --output ./scholar-programmer.png
+```
+
+The wrapper prints `savedPath`, and pixel-mode runs may also print
+`previewPath` plus `pixelMetadata`.
 
 ## License
 

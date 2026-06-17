@@ -31,6 +31,11 @@ function parseArgs(argv) {
     provider: null,
     images: [],
     size: null,
+    pixelSize: null,
+    pixelMode: false,
+    pixelPalette: null,
+    pixelDither: null,
+    previewUpscale: null,
     help: false,
     version: false
   };
@@ -82,6 +87,25 @@ function parseArgs(argv) {
         break;
       case '--size':
         parsed.size = next;
+        index += 1;
+        break;
+      case '--pixel-size':
+        parsed.pixelSize = next;
+        index += 1;
+        break;
+      case '--pixel-mode':
+        parsed.pixelMode = true;
+        break;
+      case '--pixel-palette':
+        parsed.pixelPalette = next;
+        index += 1;
+        break;
+      case '--pixel-dither':
+        parsed.pixelDither = next;
+        index += 1;
+        break;
+      case '--preview-upscale':
+        parsed.previewUpscale = next;
         index += 1;
         break;
       case '--dry-run':
@@ -158,6 +182,11 @@ Options:
   --image <path>                Input image path (can be used multiple times)
   --size <value>                Output image size: auto, 1024x1024, 1536x1024, 1024x1536,
                                 2048x2048, 2048x1152, 3840x2160, 2160x3840 (private-codex only)
+  --pixel-size <value>          Resize saved PNG to N or WIDTHxHEIGHT pixels, e.g. 32 or 64x64
+  --pixel-mode                  Add pixel-art prompt constraints and apply palette cleanup
+  --pixel-palette <count>       Pixel-mode palette size, 2-256 colors (default: 24)
+  --pixel-dither <mode>         Pixel-mode dithering: none | bayer2 | bayer4 (default: none)
+  --preview-upscale <factor>    Also write a nearest-neighbor .preview.png scaled by factor
   --dry-run                     Print the request shape without calling the backend
   --debug                       Write sanitized request/response dumps
   --debug-dir <path>            Directory for sanitized debug artifacts
@@ -204,7 +233,12 @@ async function main() {
     debug: args.debug,
     debugDir: args.debugDir ? path.resolve(args.debugDir) : args.debug ? path.resolve('.debug-codex-imagegen') : null,
     images,
-    ...(args.size ? { size: args.size } : {})
+    ...(args.size ? { size: args.size } : {}),
+    ...(args.pixelSize ? { pixelSize: args.pixelSize } : {}),
+    ...(args.pixelMode ? { pixelMode: true } : {}),
+    ...(args.pixelPalette ? { pixelPalette: args.pixelPalette } : {}),
+    ...(args.pixelDither ? { pixelDither: args.pixelDither } : {}),
+    ...(args.previewUpscale ? { previewUpscale: args.previewUpscale } : {})
   });
 
   if (result.mode === 'dry-run') {
@@ -219,6 +253,8 @@ async function main() {
   console.log(JSON.stringify({
     provider: result.provider || config.provider,
     savedPath: result.savedPath,
+    previewPath: result.previewPath,
+    pixelMetadata: result.pixelMetadata,
     responseId: result.responseId,
     sessionId: result.sessionId,
     revisedPrompt: result.revisedPrompt,

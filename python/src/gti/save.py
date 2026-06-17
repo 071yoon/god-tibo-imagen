@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from .errors import make_error
+from .resize import process_pixel_art_png_bytes, resize_png_bytes, upscale_png_bytes
 
 
 def _assert_standard_base64(value: str) -> None:
@@ -15,7 +16,17 @@ def _assert_standard_base64(value: str) -> None:
         raise make_error("Image payload is not standard base64.", code="INVALID_BASE64")
 
 
-def save_image(*, result_base64: str, output_path: str | Path) -> str:
+def save_image(
+    *,
+    result_base64: str,
+    output_path: str | Path,
+    pixel_size: str | int | None = None,
+    pixel_mode: bool = False,
+    pixel_palette: str | int | None = None,
+    pixel_dither: str | None = None,
+    preview_upscale: str | int | None = None,
+    return_metadata: bool = False,
+) -> str | dict[str, object]:
     _assert_standard_base64(result_base64)
 
     try:
@@ -26,7 +37,26 @@ def save_image(*, result_base64: str, output_path: str | Path) -> str:
     if not bytes_data:
         raise make_error("Decoded image payload is empty.", code="EMPTY_IMAGE_PAYLOAD")
 
+    pixel_metadata = None
+    if pixel_mode:
+        output_data, pixel_metadata = process_pixel_art_png_bytes(
+            bytes_data,
+            pixel_size=pixel_size or 128,
+            palette_size=pixel_palette,
+            dither=pixel_dither,
+        )
+    else:
+        output_data = resize_png_bytes(bytes_data, pixel_size) if pixel_size else bytes_data
+
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(bytes_data)
-    return str(output)
+    output.write_bytes(output_data)
+
+    preview_path = None
+    if preview_upscale:
+        preview = output.with_name(f"{output.stem}.preview{output.suffix or '.png'}")
+        preview.write_bytes(upscale_png_bytes(output_data, preview_upscale))
+        preview_path = str(preview)
+
+    result = {"savedPath": str(output), "previewPath": preview_path, "pixelMetadata": pixel_metadata}
+    return result if return_metadata else str(output)

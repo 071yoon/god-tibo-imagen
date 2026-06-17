@@ -13,6 +13,8 @@ export {
 export { parseSseText, summarizeEvents } from './codex/streamResponsesSse.js';
 export { extractImageGeneration } from './codex/extractImageGeneration.js';
 export { saveImage } from './fs/saveImage.js';
+export { processPixelArtPngBytes, resizePngBytes, upscalePngBytes } from './fs/pngResize.js';
+export { buildPixelArtPrompt } from './pixel/prompt.js';
 export { createProvider } from './providers/createProvider.js';
 export { createPrivateCodexProvider } from './providers/privateCodexProvider.js';
 export { createCodexCliProvider } from './providers/codexCliProvider.js';

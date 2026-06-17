@@ -43,6 +43,8 @@ class GenerateImageResult:
     response_id: str | None = None
     session_id: str | None = None
     saved_path: str | None = None
+    preview_path: str | None = None
+    pixel_metadata: dict[str, Any] | None = None
     revised_prompt: str | None = None
     request: dict[str, Any] | None = None
     response: dict[str, Any] | None = None
@@ -58,6 +60,8 @@ class GenerateImageResult:
             response_id=payload.get("responseId"),
             session_id=payload.get("sessionId"),
             saved_path=payload.get("savedPath"),
+            preview_path=payload.get("previewPath"),
+            pixel_metadata=payload.get("pixelMetadata"),
             revised_prompt=payload.get("revisedPrompt"),
             request=payload.get("request"),
             response=payload.get("response"),
@@ -77,6 +81,11 @@ class Client:
         output_path: str | None = None,
         image_paths: list[str] | str | None = None,
         size: str | None = None,
+        pixel_size: str | int | None = None,
+        pixel_mode: bool = False,
+        pixel_palette: str | int | None = None,
+        pixel_dither: str | None = None,
+        preview_upscale: str | int | None = None,
         dry_run: bool = False,
         debug: bool = False,
         debug_dir: str | None = None,
@@ -94,6 +103,11 @@ class Client:
             output_path=output_path or self.config["defaultOutputPath"],
             images=images,
             size=size,
+            pixel_size=pixel_size,
+            pixel_mode=pixel_mode,
+            pixel_palette=pixel_palette,
+            pixel_dither=pixel_dither,
+            preview_upscale=preview_upscale,
             dry_run=dry_run,
             debug=debug,
             debug_dir=debug_dir,

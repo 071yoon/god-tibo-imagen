@@ -12,6 +12,7 @@ import {
 import { extractImageGeneration } from '../codex/extractImageGeneration.js';
 import { parseSseText } from '../codex/streamResponsesSse.js';
 import { saveImage } from '../fs/saveImage.js';
+import { buildPixelArtPrompt } from '../pixel/prompt.js';
 
 function classifyFailure({ status, body }) {
   if (status === 401) {
@@ -120,17 +121,35 @@ async function writeDebugArtifacts({
  * Create a provider that talks directly to the private Codex HTTP backend.
  *
  * @param {{ baseUrl: string, authFile: string, installationIdFile: string, defaultOriginator: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model: string, outputPath: string, dryRun?: boolean, debug?: boolean, debugDir?: string, fetchImpl?: typeof fetch, images?: string[], size?: string }) => Promise<{ mode: string, warnings: string[], responseId: string | null, sessionId?: string, savedPath?: string, revisedPrompt: string | null, request: unknown, response?: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model: string, outputPath: string, dryRun?: boolean, debug?: boolean, debugDir?: string, fetchImpl?: typeof fetch, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, previewUpscale?: string | number }) => Promise<{ mode: string, warnings: string[], responseId: string | null, sessionId?: string, savedPath?: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: string | null, request: unknown, response?: unknown }> }} Provider implementation.
  */
 export function createPrivateCodexProvider(config) {
   return {
-    async generateImage({ prompt, model, outputPath, dryRun = false, debug = false, debugDir, fetchImpl = globalThis.fetch, images, size }) {
+    async generateImage({
+      prompt,
+      model,
+      outputPath,
+      dryRun = false,
+      debug = false,
+      debugDir,
+      fetchImpl = globalThis.fetch,
+      images,
+      size,
+      pixelSize,
+      pixelMode = false,
+      pixelPalette,
+      pixelDither,
+      previewUpscale
+    }) {
       const session = await loadCodexSession(config);
       const validation = validateCodexSession(session);
+      const effectivePrompt = pixelMode
+        ? buildPixelArtPrompt({ prompt, pixelSize: pixelSize || 128, pixelPalette, pixelDither })
+        : prompt;
       const request = buildResponsesRequest({
         baseUrl: config.baseUrl,
         session,
-        prompt,
+        prompt: effectivePrompt,
         model,
         originator: config.defaultOriginator,
         images,
@@ -222,14 +241,25 @@ export function createPrivateCodexProvider(config) {
       }
 
       const generation = extractImageGeneration(parsed);
-      const savedPath = await saveImage({ resultBase64: generation.resultBase64, outputPath });
+      const saved = await saveImage({
+        resultBase64: generation.resultBase64,
+        outputPath,
+        pixelSize,
+        pixelMode,
+        pixelPalette,
+        pixelDither,
+        previewUpscale,
+        returnMetadata: true
+      });
 
       return {
         mode: 'live',
         warnings: validation.warnings,
         responseId: parsed.responseId,
         sessionId: request.sessionId,
-        savedPath,
+        savedPath: saved.savedPath,
+        previewPath: saved.previewPath,
+        pixelMetadata: saved.pixelMetadata,
         revisedPrompt: generation.revisedPrompt,
         request: request.sanitized,
         response: {

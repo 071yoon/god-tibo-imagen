@@ -119,6 +119,87 @@ test('private provider forwards output size to request builder', async () => {
   assert.equal(result.savedPath, outputPath);
 });
 
+test('private provider resizes saved PNG when pixelSize is provided', async () => {
+  const dir = await makeTempDir();
+  const fixture = await writeAuthFixture(dir);
+  const outputPath = path.join(dir, 'pixel.png');
+  const successSse = await fs.readFile(path.join(fixturesDir.pathname, 'success.sse'), 'utf8');
+
+  const provider = createPrivateCodexProvider({
+    baseUrl: 'https://chatgpt.com/backend-api/codex',
+    authFile: fixture.authPath,
+    installationIdFile: fixture.installationIdPath,
+    defaultOriginator: 'codex_cli_rs'
+  });
+
+  await provider.generateImage({
+    prompt: 'make a blue square',
+    model: 'gpt-5.4',
+    outputPath,
+    pixelSize: 4,
+    fetchImpl: async () =>
+      createFetchResponse({
+        ok: true,
+        status: 200,
+        body: successSse,
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-oai-request-id': 'req-791'
+        }
+      })
+  });
+
+  const bytes = await fs.readFile(outputPath);
+  assert.equal(bytes.readUInt32BE(16), 4);
+  assert.equal(bytes.readUInt32BE(20), 4);
+});
+
+test('private provider applies pixel mode prompt constraints and preview output', async () => {
+  const dir = await makeTempDir();
+  const fixture = await writeAuthFixture(dir);
+  const outputPath = path.join(dir, 'pixel-mode.png');
+  const successSse = await fs.readFile(path.join(fixturesDir.pathname, 'success.sse'), 'utf8');
+
+  const provider = createPrivateCodexProvider({
+    baseUrl: 'https://chatgpt.com/backend-api/codex',
+    authFile: fixture.authPath,
+    installationIdFile: fixture.installationIdPath,
+    defaultOriginator: 'codex_cli_rs'
+  });
+
+  const result = await provider.generateImage({
+    prompt: 'make a scholar programmer icon',
+    model: 'gpt-5.4',
+    outputPath,
+    pixelSize: 4,
+    pixelMode: true,
+    pixelPalette: 8,
+    pixelDither: 'none',
+    previewUpscale: 2,
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      assert.match(body.input[0].content[0].text, /Pixel-art production constraints/);
+      assert.match(body.input[0].content[0].text, /Avoid double pixels/);
+      return createFetchResponse({
+        ok: true,
+        status: 200,
+        body: successSse,
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-oai-request-id': 'req-792'
+        }
+      });
+    }
+  });
+
+  assert.equal(result.savedPath, outputPath);
+  assert.equal(result.previewPath, path.join(dir, 'pixel-mode.preview.png'));
+  assert.equal(result.pixelMetadata.paletteSize, 8);
+  const preview = await fs.readFile(result.previewPath);
+  assert.equal(preview.readUInt32BE(16), 8);
+  assert.equal(preview.readUInt32BE(20), 8);
+});
+
 test('private provider redacts secrets in debug dumps', async () => {
   const dir = await makeTempDir();
   const fixture = await writeAuthFixture(dir);

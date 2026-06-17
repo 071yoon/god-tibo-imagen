@@ -13,6 +13,7 @@ from .request_builder import sanitize_headers, sanitize_request_body, build_resp
 from .save import save_image
 from .sse_parser import parse_sse_text
 from .errors import make_error
+from .prompt import build_pixel_art_prompt
 
 
 def _classify_failure(*, status: int, body: str):
@@ -133,6 +134,11 @@ class PrivateCodexProvider:
         output_path: str,
         images: list[str] | None = None,
         size: str | None = None,
+        pixel_size: str | int | None = None,
+        pixel_mode: bool = False,
+        pixel_palette: str | int | None = None,
+        pixel_dither: str | None = None,
+        preview_upscale: str | int | None = None,
         dry_run: bool = False,
         debug: bool = False,
         debug_dir: str | Path | None = None,
@@ -142,10 +148,20 @@ class PrivateCodexProvider:
             auth_file=self.config["authFile"], installation_id_file=self.config["installationIdFile"]
         )
         validation = validate_codex_session(session)
+        effective_prompt = (
+            build_pixel_art_prompt(
+                prompt=prompt,
+                pixel_size=pixel_size or 128,
+                pixel_palette=pixel_palette or 24,
+                pixel_dither=pixel_dither,
+            )
+            if pixel_mode
+            else prompt
+        )
         request = build_responses_request(
             base_url=self.config["baseUrl"],
             session=session,
-            prompt=prompt,
+            prompt=effective_prompt,
             model=model,
             originator=self.config["defaultOriginator"],
             images=images,
@@ -215,13 +231,24 @@ class PrivateCodexProvider:
             )
 
         image = extract_image_generation(parsed)
-        saved_path = save_image(result_base64=image["resultBase64"], output_path=output_path)
+        saved = save_image(
+            result_base64=image["resultBase64"],
+            output_path=output_path,
+            pixel_size=pixel_size,
+            pixel_mode=pixel_mode,
+            pixel_palette=pixel_palette,
+            pixel_dither=pixel_dither,
+            preview_upscale=preview_upscale,
+            return_metadata=True,
+        )
         return {
             "mode": "live",
             "warnings": validation["warnings"],
             "responseId": parsed["responseId"],
             "sessionId": request["sessionId"],
-            "savedPath": saved_path,
+            "savedPath": saved["savedPath"],
+            "previewPath": saved["previewPath"],
+            "pixelMetadata": saved["pixelMetadata"],
             "revisedPrompt": image["revisedPrompt"],
             "request": request["sanitized"],
             "response": {

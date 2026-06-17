@@ -51,6 +51,87 @@ test('codex-cli provider verifies generated image and copies it', async () => {
   assert.equal(calls.length, 3);
 });
 
+test('codex-cli provider resizes copied image when pixelSize is provided', async () => {
+  const dir = await makeTempDir();
+  const generatedImagesDir = path.join(dir, 'generated_images');
+  const sessionId = '019db407-7ba4-7643-8f14-47011c0e1dc1';
+  const sourceDir = path.join(generatedImagesDir, sessionId);
+  const sourcePath = path.join(sourceDir, 'ig_test.png');
+  const outputPath = path.join(dir, 'pixel.png');
+  await fs.mkdir(sourceDir, { recursive: true });
+  await fs.writeFile(sourcePath, Buffer.from(PNG_BASE64, 'base64'));
+
+  const execImpl = async (_file, args) => {
+    if (args[0] === '--version') {
+      return { stdout: 'codex-cli 0.122.0\n', stderr: '' };
+    }
+    if (args[0] === 'login') {
+      return { stdout: 'Logged in using ChatGPT\n', stderr: '' };
+    }
+    return {
+      stdout: `OpenAI Codex\nsession id: ${sessionId}\n`,
+      stderr: ''
+    };
+  };
+
+  const provider = createCodexCliProvider({ generatedImagesDir });
+  await provider.generateImage({
+    prompt: 'red square',
+    outputPath,
+    pixelSize: '3x2',
+    execImpl
+  });
+
+  const bytes = await fs.readFile(outputPath);
+  assert.equal(bytes.readUInt32BE(16), 3);
+  assert.equal(bytes.readUInt32BE(20), 2);
+});
+
+test('codex-cli provider applies pixel mode and preview output', async () => {
+  const dir = await makeTempDir();
+  const generatedImagesDir = path.join(dir, 'generated_images');
+  const sessionId = '019db407-7ba4-7643-8f14-47011c0e1dc1';
+  const sourceDir = path.join(generatedImagesDir, sessionId);
+  const sourcePath = path.join(sourceDir, 'ig_test.png');
+  const outputPath = path.join(dir, 'pixel-mode.png');
+  await fs.mkdir(sourceDir, { recursive: true });
+  await fs.writeFile(sourcePath, Buffer.from(PNG_BASE64, 'base64'));
+
+  let wrappedPrompt = '';
+  const execImpl = async (_file, args) => {
+    if (args[0] === '--version') {
+      return { stdout: 'codex-cli 0.122.0\n', stderr: '' };
+    }
+    if (args[0] === 'login') {
+      return { stdout: 'Logged in using ChatGPT\n', stderr: '' };
+    }
+    wrappedPrompt = args.at(-1);
+    return {
+      stdout: `OpenAI Codex\nsession id: ${sessionId}\n`,
+      stderr: ''
+    };
+  };
+
+  const provider = createCodexCliProvider({ generatedImagesDir });
+  const result = await provider.generateImage({
+    prompt: 'red square',
+    outputPath,
+    pixelSize: 4,
+    pixelMode: true,
+    pixelPalette: 8,
+    previewUpscale: 2,
+    execImpl
+  });
+
+  assert.match(wrappedPrompt, /Pixel-art production constraints/);
+  assert.match(wrappedPrompt, /Avoid double pixels/);
+  assert.equal(result.previewPath, path.join(dir, 'pixel-mode.preview.png'));
+  assert.equal(result.pixelMetadata.paletteSize, 8);
+  const bytes = await fs.readFile(outputPath);
+  assert.equal(bytes.readUInt32BE(16), 4);
+  assert.equal(bytes.readUInt32BE(20), 4);
+});
+
 test('codex-cli provider writes debug summary without raw image payloads', async () => {
   const dir = await makeTempDir();
   const generatedImagesDir = path.join(dir, 'generated_images');

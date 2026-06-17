@@ -4,7 +4,7 @@
 
 # god-tibo-imagen
 
-Node.js library and CLI for sending image-generation requests to Codex's private ChatGPT-authenticated backend path.
+Pixel-focused image generation CLI and SDK for Codex's ChatGPT-authenticated image-generation path. It can call the private backend directly or drive `codex exec`, then post-process the PNG into constrained pixel-art output.
 
 > WARNING: This is **not** a supported public API integration. It depends on private Codex request behavior that may change without notice.
 
@@ -15,6 +15,7 @@ Node.js library and CLI for sending image-generation requests to Codex's private
 - Sends a `POST` request to `https://chatgpt.com/backend-api/codex/responses`
 - Requests the built-in `image_generation` tool with `output_format: png`
 - Parses streamed SSE output and saves the resulting PNG
+- Supports pixel-art output with target canvas resizing, palette limiting, optional ordered dithering, and nearest-neighbor preview files
 - Supports dry-run and sanitized debug dumps with request/response metadata minimization
 - Also supports a `codex exec` fallback provider that verifies real PNG output from `~/.codex/generated_images/`
 
@@ -107,6 +108,53 @@ Supported sizes:
 
 The `--size` flag is forwarded to the `image_generation` tool config and is honored by the private Codex backend. The `codex-cli` provider does not support `--size`; direct `codex-cli` use and `auto` fallback fail fast rather than silently ignoring requested dimensions.
 
+### Pixel output size
+
+For pixel-art workflows, use `--pixel-size <value>` to resize the saved PNG after generation. This does not request a tiny canvas from the backend; it generates with the normal backend size, then writes a nearest-neighbor resized PNG such as `32x32`, `64x64`, or `128x128`.
+
+```bash
+gti --prompt "32x32 pixel art sword sprite, transparent background" --size 1024x1024 --pixel-size 32 --output ./sword-32.png
+gti --prompt "pixel art character idle sprite" --pixel-size 64x64 --output ./idle-64.png
+```
+
+Use `--size` for the model/backend canvas and `--pixel-size` for the final file dimensions.
+
+### Pixel mode
+
+Use `--pixel-mode` when the final image should obey pixel-art constraints instead of only being resized. Pixel mode:
+
+- adds prompt constraints for limited palettes, crisp square pixels, clean outlines, no anti-aliasing, no double pixels, and smoother stair-step slopes
+- downscales with area sampling before converting to the final pixel grid
+- limits the palette to `--pixel-palette <count>` colors
+- can apply ordered dithering with `--pixel-dither bayer2` or `--pixel-dither bayer4`
+- can write a larger inspection image with `--preview-upscale <factor>`
+
+```bash
+gti --prompt "cute Korean Joseon-era scholar programmer, black gat, pale mint hanbok, coding on a laptop" \
+  --size 1024x1024 \
+  --pixel-mode \
+  --pixel-size 128 \
+  --pixel-palette 24 \
+  --preview-upscale 4 \
+  --output ./scholar-programmer.png
+```
+
+This writes `./scholar-programmer.png` as a real `128x128` PNG and `./scholar-programmer.preview.png` as a `512x512` nearest-neighbor preview.
+
+Pixel mode also works with the `codex-cli` provider. That route drives
+`codex exec`, finds the generated PNG under `~/.codex/generated_images/`, and
+then applies the same local pixel-art post-processing:
+
+```bash
+gti --provider codex-cli \
+  --prompt "cute 16-bit potion bottle game inventory icon" \
+  --pixel-mode \
+  --pixel-size 128 \
+  --pixel-palette 24 \
+  --preview-upscale 4 \
+  --output ./potion.png
+```
+
 ### Provider modes
 
 ```bash
@@ -170,6 +218,29 @@ const result = await provider.generateImage({
   size: '1536x1024'
 });
 
+// with final pixel output size
+const pixel = await provider.generateImage({
+  prompt: '32x32 pixel art sword sprite, transparent background',
+  model: 'gpt-5.4',
+  outputPath: './sword-32.png',
+  size: '1024x1024',
+  pixelSize: 32
+});
+
+// pixel mode with palette cleanup and preview
+const icon = await provider.generateImage({
+  prompt: 'cute Korean Joseon-era scholar programmer coding on a laptop',
+  model: 'gpt-5.4',
+  outputPath: './scholar-programmer.png',
+  size: '1024x1024',
+  pixelMode: true,
+  pixelSize: 128,
+  pixelPalette: 24,
+  previewUpscale: 4
+});
+
+console.log(icon.savedPath, icon.previewPath, icon.pixelMetadata);
+
 // multiple images
 const result = await provider.generateImage({
   prompt: 'Combine these two styles',
@@ -203,6 +274,29 @@ result = client.generate_image(
     size="1536x1024"
 )
 print(result.saved_path)
+
+# with final pixel output size
+result = client.generate_image(
+    prompt="32x32 pixel art sword sprite, transparent background",
+    model="gpt-5.4",
+    output_path="./sword-32.png",
+    size="1024x1024",
+    pixel_size=32
+)
+print(result.saved_path)
+
+# pixel mode with palette cleanup and preview
+result = client.generate_image(
+    prompt="cute Korean Joseon-era scholar programmer coding on a laptop",
+    model="gpt-5.4",
+    output_path="./scholar-programmer.png",
+    size="1024x1024",
+    pixel_mode=True,
+    pixel_size=128,
+    pixel_palette=24,
+    preview_upscale=4,
+)
+print(result.saved_path, result.preview_path, result.pixel_metadata)
 ```
 
 You can also pass existing images as input:

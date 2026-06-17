@@ -9,6 +9,7 @@ duck-surf-cool.png
 /cute-test.png
 /test-node-*.png
 /test-py-*.png
+/output/
 
 # Node
 node_modules/

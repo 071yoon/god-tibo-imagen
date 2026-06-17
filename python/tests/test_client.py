@@ -158,6 +158,93 @@ def test_client_generate_image_forwards_size(tmp_path):
     assert result.mode == "live"
 
 
+def test_client_generate_image_resizes_pixel_output(tmp_path):
+    auth_file = tmp_path / "auth.json"
+    installation_file = tmp_path / "installation_id"
+    auth_file.write_text(
+        json.dumps(
+            {
+                "auth_mode": "chatgpt",
+                "tokens": {
+                    "access_token": make_jwt({"exp": 32503680000}),
+                    "account_id": "acct-123",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    installation_file.write_text("iid-123", encoding="utf-8")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, text=fixture_text("success.sse"))
+
+    client = Client(
+        authFile=str(auth_file),
+        installationIdFile=str(installation_file),
+        baseUrl="https://chatgpt.com/backend-api/codex",
+    )
+    output = tmp_path / "pixel.png"
+    result = client.generate_image(
+        prompt="blue square",
+        output_path=str(output),
+        pixel_size="4x5",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    data = output.read_bytes()
+    assert result.mode == "live"
+    assert int.from_bytes(data[16:20], "big") == 4
+    assert int.from_bytes(data[20:24], "big") == 5
+
+
+def test_client_generate_image_applies_pixel_mode_prompt_and_preview(tmp_path):
+    auth_file = tmp_path / "auth.json"
+    installation_file = tmp_path / "installation_id"
+    auth_file.write_text(
+        json.dumps(
+            {
+                "auth_mode": "chatgpt",
+                "tokens": {
+                    "access_token": make_jwt({"exp": 32503680000}),
+                    "account_id": "acct-123",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    installation_file.write_text("iid-123", encoding="utf-8")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        text = body["input"][0]["content"][0]["text"]
+        assert "Pixel-art production constraints" in text
+        assert "Avoid double pixels" in text
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, text=fixture_text("success.sse"))
+
+    client = Client(
+        authFile=str(auth_file),
+        installationIdFile=str(installation_file),
+        baseUrl="https://chatgpt.com/backend-api/codex",
+    )
+    output = tmp_path / "pixel-mode.png"
+    result = client.generate_image(
+        prompt="blue square",
+        output_path=str(output),
+        pixel_size=4,
+        pixel_mode=True,
+        pixel_palette=8,
+        preview_upscale=2,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert result.mode == "live"
+    assert result.preview_path == str(tmp_path / "pixel-mode.preview.png")
+    assert result.pixel_metadata["paletteSize"] == 8
+    preview = (tmp_path / "pixel-mode.preview.png").read_bytes()
+    assert int.from_bytes(preview[16:20], "big") == 8
+    assert int.from_bytes(preview[20:24], "big") == 8
+
+
 def test_client_generate_image_with_unsupported_extension(tmp_path):
     auth_file = tmp_path / "auth.json"
     installation_file = tmp_path / "installation_id"

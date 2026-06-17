@@ -2,7 +2,7 @@ event: response.created
 data: {"type":"response.created","response":{"id":"resp_success_1"}}
 
 event: response.output_item.done
-data: {"type":"response.output_item.done","item":{"type":"image_generation_call","id":"ig_success_1","status":"generating","revised_prompt":"a tiny blue square","result":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlAbwAAAABJRU5ErkJggg=="}}
+data: {"type":"response.output_item.done","item":{"type":"image_generation_call","id":"ig_success_1","status":"generating","revised_prompt":"a tiny blue square","result":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="}}
 
 event: response.completed
 data: {"type":"response.completed","response":{"id":"resp_success_1"}}

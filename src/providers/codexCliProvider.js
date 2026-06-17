@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+
+import { processPixelArtPngBytes, resizePngBytes, upscalePngBytes } from '../fs/pngResize.js';
+import { buildPixelArtPrompt } from '../pixel/prompt.js';
 const SESSION_ID_PATTERN = /session id:\s*([0-9a-f-]{36})/i;
 const PNG_PATTERN = /\.png$/i;
 const BWRAP_PATTERN = /bwrap:|Failed RTM_NEWADDR/i;
@@ -87,6 +90,16 @@ async function ensureParentDir(filePath) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 }
 
+async function writePreviewImage({ outputPath, bytes, previewUpscale }) {
+  if (!previewUpscale) {
+    return null;
+  }
+  const parsed = path.parse(outputPath);
+  const previewPath = path.join(parsed.dir, `${parsed.name}.preview${parsed.ext || '.png'}`);
+  await fs.writeFile(previewPath, upscalePngBytes(bytes, previewUpscale));
+  return previewPath;
+}
+
 async function writeDebugArtifacts({ debugDir, payload }) {
   if (!debugDir) {
     return;
@@ -144,7 +157,7 @@ async function runCodexPreflight(execImpl) {
  * Create a provider that uses `codex exec` as the image-generation fallback.
  *
  * @param {{ generatedImagesDir: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
  */
 export function createCodexCliProvider(config) {
   return {
@@ -156,7 +169,12 @@ export function createCodexCliProvider(config) {
       debugDir,
       execImpl = runCommand,
       images,
-      size
+      size,
+      pixelSize,
+      pixelMode = false,
+      pixelPalette,
+      pixelDither,
+      previewUpscale
     }) {
       if (images && images.length > 0) {
         throw new Error('The codex-cli provider does not support image input.');
@@ -178,7 +196,10 @@ export function createCodexCliProvider(config) {
 
       const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-imagegen-cli-'));
       const lastMessagePath = path.join(tempDir, 'last.txt');
-      const wrappedPrompt = buildWrappedPrompt(prompt);
+      const effectivePrompt = pixelMode
+        ? buildPixelArtPrompt({ prompt, pixelSize: pixelSize || 128, pixelPalette, pixelDither })
+        : prompt;
+      const wrappedPrompt = buildWrappedPrompt(effectivePrompt);
       const startedAtMs = Date.now();
       const args = [
         'exec',
@@ -218,7 +239,30 @@ export function createCodexCliProvider(config) {
       }
 
       await ensureParentDir(outputPath);
-      await fs.copyFile(generated.path, outputPath);
+      let previewPath = null;
+      let pixelMetadata = null;
+      if (pixelMode) {
+        const bytes = await fs.readFile(generated.path);
+        const processed = processPixelArtPngBytes(bytes, {
+          pixelSize: pixelSize || '128',
+          paletteSize: pixelPalette,
+          dither: pixelDither
+        });
+        await fs.writeFile(outputPath, processed.bytes);
+        pixelMetadata = processed.metadata;
+        previewPath = await writePreviewImage({ outputPath, bytes: processed.bytes, previewUpscale });
+      } else if (pixelSize) {
+        const bytes = await fs.readFile(generated.path);
+        const resized = resizePngBytes(bytes, pixelSize);
+        await fs.writeFile(outputPath, resized);
+        previewPath = await writePreviewImage({ outputPath, bytes: resized, previewUpscale });
+      } else {
+        await fs.copyFile(generated.path, outputPath);
+        if (previewUpscale) {
+          const bytes = await fs.readFile(outputPath);
+          previewPath = await writePreviewImage({ outputPath, bytes, previewUpscale });
+        }
+      }
 
       const lastMessage = await fs.readFile(lastMessagePath, 'utf8').catch(() => '');
       if (debug) {
@@ -250,6 +294,8 @@ export function createCodexCliProvider(config) {
         responseId: null,
         sessionId,
         savedPath: outputPath,
+        previewPath,
+        pixelMetadata,
         revisedPrompt: null,
         request: {
           provider: 'codex-cli',
