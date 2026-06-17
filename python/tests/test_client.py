@@ -219,6 +219,7 @@ def test_client_generate_image_applies_pixel_mode_prompt_and_preview(tmp_path):
         text = body["input"][0]["content"][0]["text"]
         assert "Pixel-art production constraints" in text
         assert "Avoid double pixels" in text
+        assert "strong readable 1-pixel dark outline" in text
         return httpx.Response(200, headers={"content-type": "text/event-stream"}, text=fixture_text("success.sse"))
 
     client = Client(
@@ -233,6 +234,7 @@ def test_client_generate_image_applies_pixel_mode_prompt_and_preview(tmp_path):
         pixel_size=4,
         pixel_mode=True,
         pixel_palette=8,
+        pixel_outline="strong",
         preview_upscale=2,
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
@@ -240,6 +242,7 @@ def test_client_generate_image_applies_pixel_mode_prompt_and_preview(tmp_path):
     assert result.mode == "live"
     assert result.preview_path == str(tmp_path / "pixel-mode.preview.png")
     assert result.pixel_metadata["paletteSize"] == 8
+    assert result.pixel_metadata["outline"] == "strong"
     preview = (tmp_path / "pixel-mode.preview.png").read_bytes()
     assert int.from_bytes(preview[16:20], "big") == 8
     assert int.from_bytes(preview[20:24], "big") == 8

@@ -190,6 +190,13 @@ def _parse_dither(value: str | None) -> str:
     return dither
 
 
+def _parse_outline(value: str | None) -> str:
+    outline = (value or "soft").lower()
+    if outline not in ("none", "soft", "strong"):
+        raise make_error(f"Invalid pixel outline: {value}. Supported values: none, soft, strong.")
+    return outline
+
+
 def _decode_png(data: bytes) -> tuple[int, int, int, int, int, bytearray]:
     chunks = _read_chunks(data)
     ihdr = next((chunk_data for chunk_type, chunk_data in chunks if chunk_type == "IHDR"), None)
@@ -261,12 +268,103 @@ def _nearest_palette_color(color: tuple[float, float, float], palette: list[tupl
     )
 
 
+def _luminance(color: tuple[int | float, int | float, int | float]) -> float:
+    return (0.299 * color[0]) + (0.587 * color[1]) + (0.114 * color[2])
+
+
+def _color_distance_squared(
+    left: tuple[int | float, int | float, int | float],
+    right: tuple[int | float, int | float, int | float],
+) -> float:
+    return (left[0] - right[0]) ** 2 + (left[1] - right[1]) ** 2 + (left[2] - right[2]) ** 2
+
+
+def _darken_color(color: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
+    return tuple(max(0, round(value * factor)) for value in color)
+
+
+def _nearest_darker_palette_color(
+    color: tuple[int, int, int],
+    palette: list[tuple[int, int, int]],
+    target: tuple[int, int, int],
+) -> tuple[int, int, int]:
+    original_lum = _luminance(color)
+    candidates = [candidate for candidate in palette if _luminance(candidate) <= original_lum - 4]
+    if not candidates:
+        return _nearest_palette_color(target, palette)
+    return min(candidates, key=lambda candidate: _color_distance_squared(candidate, target))
+
+
 def _should_protect_from_dither(color: tuple[int, int, int]) -> bool:
     red, green, blue = color
     saturation = max(color) - min(color)
     warm_skin_like = red >= 130 and green >= 80 and blue >= 45 and red >= green >= blue and red - blue <= 120
     light_focal_flat = red >= 170 and green >= 140 and blue >= 100 and saturation <= 90
     return warm_skin_like or light_focal_flat
+
+
+def _boost_outline_contrast(
+    pixels: bytearray,
+    width: int,
+    height: int,
+    channels: int,
+    palette: list[tuple[int, int, int]],
+    outline: str,
+) -> tuple[bytearray, int]:
+    if outline == "none":
+        return pixels, 0
+
+    output = bytearray(pixels)
+    threshold = 32 if outline == "strong" else 48
+    dark_gap = 8 if outline == "strong" else 18
+    factor = 0.55 if outline == "strong" else 0.72
+    boosted_pixels = 0
+
+    for y in range(height):
+        for x in range(width):
+            offset = (y * width + x) * channels
+            if (channels == 2 and pixels[offset + 1] < 128) or (channels == 4 and pixels[offset + 3] < 128):
+                continue
+            if channels in (1, 2):
+                color = (pixels[offset], pixels[offset], pixels[offset])
+            else:
+                color = (pixels[offset], pixels[offset + 1], pixels[offset + 2])
+
+            color_lum = _luminance(color)
+            max_distance = 0.0
+            brightest_neighbor_lum = color_lum
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if nx < 0 or ny < 0 or nx >= width or ny >= height:
+                    continue
+                neighbor_offset = (ny * width + nx) * channels
+                if (channels == 2 and pixels[neighbor_offset + 1] < 128) or (
+                    channels == 4 and pixels[neighbor_offset + 3] < 128
+                ):
+                    continue
+                if channels in (1, 2):
+                    neighbor = (pixels[neighbor_offset], pixels[neighbor_offset], pixels[neighbor_offset])
+                else:
+                    neighbor = (
+                        pixels[neighbor_offset],
+                        pixels[neighbor_offset + 1],
+                        pixels[neighbor_offset + 2],
+                    )
+                max_distance = max(max_distance, _color_distance_squared(color, neighbor))
+                brightest_neighbor_lum = max(brightest_neighbor_lum, _luminance(neighbor))
+
+            if max_distance < threshold * threshold or color_lum > brightest_neighbor_lum - dark_gap:
+                continue
+
+            boosted = _nearest_darker_palette_color(color, palette, _darken_color(color, factor))
+            if channels in (1, 2):
+                output[offset] = round(sum(boosted) / 3)
+            else:
+                output[offset] = boosted[0]
+                output[offset + 1] = boosted[1]
+                output[offset + 2] = boosted[2]
+            boosted_pixels += 1
+
+    return output, boosted_pixels
 
 
 def _quantize_pixels(
@@ -366,6 +464,7 @@ def process_pixel_art_png_bytes(
     pixel_size: str | int,
     palette_size: str | int | None = None,
     dither: str | None = None,
+    outline: str | None = None,
 ) -> tuple[bytes, dict[str, int | str]]:
     target = _parse_pixel_size(pixel_size)
     if target is None:
@@ -374,10 +473,14 @@ def process_pixel_art_png_bytes(
     target_width, target_height = target
     parsed_palette_size = _parse_palette_size(palette_size)
     parsed_dither = _parse_dither(dither)
+    parsed_outline = _parse_outline(outline)
     width, height, bit_depth, color_type, channels, pixels = _decode_png(data)
     resized = _resize_area(pixels, width, height, target_width, target_height, channels)
     quantized, palette = _quantize_pixels(
         resized, target_width, target_height, channels, parsed_palette_size, parsed_dither
+    )
+    outlined, outline_boosted_pixels = _boost_outline_contrast(
+        quantized, target_width, target_height, channels, palette, parsed_outline
     )
     return (
         _encode_png(
@@ -385,7 +488,7 @@ def process_pixel_art_png_bytes(
             height=target_height,
             bit_depth=bit_depth,
             color_type=color_type,
-            pixels=quantized,
+            pixels=outlined,
             channels=channels,
         ),
         {
@@ -394,6 +497,8 @@ def process_pixel_art_png_bytes(
             "paletteSize": parsed_palette_size,
             "actualPaletteSize": len(palette),
             "dither": parsed_dither,
+            "outline": parsed_outline,
+            "outlineBoostedPixels": outline_boosted_pixels,
         },
     )
 

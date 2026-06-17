@@ -126,6 +126,7 @@ Use `--pixel-mode` when the final image should obey pixel-art constraints instea
 - adds prompt constraints for limited palettes, crisp square pixels, clean outlines, no anti-aliasing, no double pixels, and smoother stair-step slopes
 - downscales with area sampling before converting to the final pixel grid
 - limits the palette to `--pixel-palette <count>` colors
+- boosts readable edge contrast with `--pixel-outline soft` or `--pixel-outline strong`
 - can apply ordered dithering with `--pixel-dither bayer2` or `--pixel-dither bayer4`
 - can write a larger inspection image with `--preview-upscale <factor>`
 
@@ -135,6 +136,7 @@ gti --prompt "cute Korean Joseon-era scholar programmer, black gat, pale mint ha
   --pixel-mode \
   --pixel-size 128 \
   --pixel-palette 24 \
+  --pixel-outline strong \
   --preview-upscale 4 \
   --output ./scholar-programmer.png
 ```
@@ -151,6 +153,7 @@ gti --provider codex-cli \
   --pixel-mode \
   --pixel-size 128 \
   --pixel-palette 24 \
+  --pixel-outline strong \
   --preview-upscale 4 \
   --output ./potion.png
 ```
@@ -236,6 +239,7 @@ const icon = await provider.generateImage({
   pixelMode: true,
   pixelSize: 128,
   pixelPalette: 24,
+  pixelOutline: 'strong',
   previewUpscale: 4
 });
 
@@ -294,6 +298,7 @@ result = client.generate_image(
     pixel_mode=True,
     pixel_size=128,
     pixel_palette=24,
+    pixel_outline="strong",
     preview_upscale=4,
 )
 print(result.saved_path, result.preview_path, result.pixel_metadata)

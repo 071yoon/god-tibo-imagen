@@ -35,6 +35,7 @@ function parseArgs(argv) {
     pixelMode: false,
     pixelPalette: null,
     pixelDither: null,
+    pixelOutline: null,
     previewUpscale: null,
     help: false,
     version: false
@@ -102,6 +103,10 @@ function parseArgs(argv) {
         break;
       case '--pixel-dither':
         parsed.pixelDither = next;
+        index += 1;
+        break;
+      case '--pixel-outline':
+        parsed.pixelOutline = next;
         index += 1;
         break;
       case '--preview-upscale':
@@ -186,6 +191,7 @@ Options:
   --pixel-mode                  Add pixel-art prompt constraints and apply palette cleanup
   --pixel-palette <count>       Pixel-mode palette size, 2-256 colors (default: 24)
   --pixel-dither <mode>         Pixel-mode dithering: none | bayer2 | bayer4 (default: none)
+  --pixel-outline <mode>        Pixel-mode outline contrast: none | soft | strong (default: soft)
   --preview-upscale <factor>    Also write a nearest-neighbor .preview.png scaled by factor
   --dry-run                     Print the request shape without calling the backend
   --debug                       Write sanitized request/response dumps
@@ -238,6 +244,7 @@ async function main() {
     ...(args.pixelMode ? { pixelMode: true } : {}),
     ...(args.pixelPalette ? { pixelPalette: args.pixelPalette } : {}),
     ...(args.pixelDither ? { pixelDither: args.pixelDither } : {}),
+    ...(args.pixelOutline ? { pixelOutline: args.pixelOutline } : {}),
     ...(args.previewUpscale ? { previewUpscale: args.previewUpscale } : {})
   });
 

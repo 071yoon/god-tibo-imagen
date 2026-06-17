@@ -2,7 +2,7 @@
  * Create a provider that uses `codex exec` as the image-generation fallback.
  *
  * @param {{ generatedImagesDir: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
  */
 export function createCodexCliProvider(config: {
     generatedImagesDir: string;
@@ -20,6 +20,7 @@ export function createCodexCliProvider(config: {
         pixelMode?: boolean;
         pixelPalette?: string | number;
         pixelDither?: string;
+        pixelOutline?: string;
         previewUpscale?: string | number;
     }) => Promise<{
         mode: string;

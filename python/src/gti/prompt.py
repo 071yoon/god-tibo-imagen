@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import make_error
+
 
 def build_pixel_art_prompt(
     *,
@@ -7,7 +9,18 @@ def build_pixel_art_prompt(
     pixel_size: str | int = 128,
     pixel_palette: str | int = 24,
     pixel_dither: str | None = "none",
+    pixel_outline: str | None = "soft",
 ) -> str:
+    outline = (pixel_outline or "soft").lower()
+    if outline not in ("none", "soft", "strong"):
+        raise make_error(f"Invalid pixel outline: {pixel_outline}. Supported values: none, soft, strong.")
+
+    if outline == "strong":
+        outline_line = "- Use a strong readable 1-pixel dark outline, high-contrast silhouette, and darker inner contour lines around the face, hands, clothing, props, and key objects."
+    elif outline == "none":
+        outline_line = "- Do not add heavy outlines; keep edges readable with clean color separation."
+    else:
+        outline_line = "- Use a clear readable 1-pixel dark outline and darker inner contour lines where they improve silhouette clarity."
     dither_line = (
         "- Use subtle ordered dithering only in shadows, backgrounds, or material texture; never dither skin, faces, or the main focal surface."
         if pixel_dither and pixel_dither != "none"
@@ -26,7 +39,8 @@ def build_pixel_art_prompt(
             "- Avoid double pixels on outlines and avoid uneven jaggies.",
             "- Straight lines must keep a consistent stair-step slope.",
             "- Curves must use gradually increasing or decreasing pixel run lengths.",
-            "- Use black or selectively darker colored outer outlines and darker colored inner outlines.",
+            outline_line,
+            "- Avoid pale low-contrast outlines on the main subject.",
             "- Use blocky cel shading and clustered highlights.",
             dither_line,
             "- No text, no readable letters, no watermark.",

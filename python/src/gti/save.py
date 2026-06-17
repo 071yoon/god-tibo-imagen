@@ -24,6 +24,7 @@ def save_image(
     pixel_mode: bool = False,
     pixel_palette: str | int | None = None,
     pixel_dither: str | None = None,
+    pixel_outline: str | None = None,
     preview_upscale: str | int | None = None,
     return_metadata: bool = False,
 ) -> str | dict[str, object]:
@@ -44,6 +45,7 @@ def save_image(
             pixel_size=pixel_size or 128,
             palette_size=pixel_palette,
             dither=pixel_dither,
+            outline=pixel_outline,
         )
     else:
         output_data = resize_png_bytes(bytes_data, pixel_size) if pixel_size else bytes_data

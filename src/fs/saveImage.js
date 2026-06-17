@@ -21,7 +21,7 @@ function assertStandardBase64(value) {
 /**
  * Decode a base64 PNG payload and save it to disk.
  *
- * @param {{ resultBase64: string, outputPath: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, previewUpscale?: string | number, returnMetadata?: boolean }} options - Base64 image payload and destination path.
+ * @param {{ resultBase64: string, outputPath: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number, returnMetadata?: boolean }} options - Base64 image payload and destination path.
  * @returns {Promise<string | { savedPath: string, previewPath: string | null, pixelMetadata: unknown }>} The written output path by default, or output details when returnMetadata is true.
  */
 export async function saveImage({
@@ -31,6 +31,7 @@ export async function saveImage({
   pixelMode = false,
   pixelPalette,
   pixelDither,
+  pixelOutline,
   previewUpscale,
   returnMetadata = false
 }) {
@@ -49,7 +50,8 @@ export async function saveImage({
     const processed = processPixelArtPngBytes(bytes, {
       pixelSize: pixelSize || '128',
       paletteSize: pixelPalette,
-      dither: pixelDither
+      dither: pixelDither,
+      outline: pixelOutline
     });
     outputBytes = processed.bytes;
     pixelMetadata = processed.metadata;

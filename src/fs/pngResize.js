@@ -232,6 +232,14 @@ function parseDither(value) {
   return dither;
 }
 
+function parseOutline(value) {
+  const outline = String(value || 'soft').toLowerCase();
+  if (!['none', 'soft', 'strong'].includes(outline)) {
+    throw new Error(`Invalid pixel outline: ${value}. Supported values: none, soft, strong.`);
+  }
+  return outline;
+}
+
 function decodePng(bytes) {
   const chunks = readChunks(bytes);
   const ihdr = chunks.find((chunk) => chunk.type === 'IHDR')?.data;
@@ -349,6 +357,38 @@ function nearestPaletteColor(color, palette) {
   return best;
 }
 
+function luminance(color) {
+  return (0.299 * color[0]) + (0.587 * color[1]) + (0.114 * color[2]);
+}
+
+function colorDistanceSquared(left, right) {
+  const dr = left[0] - right[0];
+  const dg = left[1] - right[1];
+  const db = left[2] - right[2];
+  return dr * dr + dg * dg + db * db;
+}
+
+function darkenColor(color, factor) {
+  return color.map((value) => Math.max(0, Math.round(value * factor)));
+}
+
+function nearestDarkerPaletteColor(color, palette, target) {
+  const originalLum = luminance(color);
+  let best = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of palette) {
+    if (luminance(candidate) > originalLum - 4) {
+      continue;
+    }
+    const distance = colorDistanceSquared(candidate, target);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+  return best || nearestPaletteColor(target, palette);
+}
+
 function shouldProtectFromDither(color) {
   const [red, green, blue] = color;
   const max = Math.max(red, green, blue);
@@ -357,6 +397,71 @@ function shouldProtectFromDither(color) {
   const warmSkinLike = red >= 130 && green >= 80 && blue >= 45 && red >= green && green >= blue && red - blue <= 120;
   const lightFocalFlat = red >= 170 && green >= 140 && blue >= 100 && saturation <= 90;
   return warmSkinLike || lightFocalFlat;
+}
+
+function boostOutlineContrast(pixels, width, height, channels, palette, outline) {
+  if (outline === 'none') {
+    return { pixels, boostedPixels: 0 };
+  }
+
+  const output = Buffer.from(pixels);
+  const threshold = outline === 'strong' ? 32 : 48;
+  const darkGap = outline === 'strong' ? 8 : 18;
+  const factor = outline === 'strong' ? 0.55 : 0.72;
+  let boostedPixels = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * channels;
+      if ((channels === 2 && pixels[offset + 1] < 128) || (channels === 4 && pixels[offset + 3] < 128)) {
+        continue;
+      }
+
+      const color = channels === 1 || channels === 2
+        ? [pixels[offset], pixels[offset], pixels[offset]]
+        : [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+      const colorLum = luminance(color);
+      let maxDistance = 0;
+      let brightestNeighborLum = colorLum;
+      const neighbors = [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1]
+      ];
+
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+          continue;
+        }
+        const neighborOffset = (ny * width + nx) * channels;
+        if ((channels === 2 && pixels[neighborOffset + 1] < 128) || (channels === 4 && pixels[neighborOffset + 3] < 128)) {
+          continue;
+        }
+        const neighbor = channels === 1 || channels === 2
+          ? [pixels[neighborOffset], pixels[neighborOffset], pixels[neighborOffset]]
+          : [pixels[neighborOffset], pixels[neighborOffset + 1], pixels[neighborOffset + 2]];
+        maxDistance = Math.max(maxDistance, colorDistanceSquared(color, neighbor));
+        brightestNeighborLum = Math.max(brightestNeighborLum, luminance(neighbor));
+      }
+
+      if (maxDistance < threshold * threshold || colorLum > brightestNeighborLum - darkGap) {
+        continue;
+      }
+
+      const boosted = nearestDarkerPaletteColor(color, palette, darkenColor(color, factor));
+      if (channels === 1 || channels === 2) {
+        output[offset] = Math.round((boosted[0] + boosted[1] + boosted[2]) / 3);
+      } else {
+        output[offset] = boosted[0];
+        output[offset + 1] = boosted[1];
+        output[offset + 2] = boosted[2];
+      }
+      boostedPixels += 1;
+    }
+  }
+
+  return { pixels: output, boostedPixels };
 }
 
 function quantizePixels(pixels, width, height, channels, paletteSize, dither) {
@@ -466,8 +571,8 @@ export function resizePngBytes(bytes, pixelSize) {
  * Process a PNG into a constrained pixel-art output.
  *
  * @param {Buffer} bytes - Source PNG bytes.
- * @param {{ pixelSize: string | number, paletteSize?: string | number, dither?: string }} options - Pixel-art processing options.
- * @returns {{ bytes: Buffer, metadata: { width: number, height: number, paletteSize: number, actualPaletteSize: number, dither: string } }} Processed PNG bytes and summary metadata.
+ * @param {{ pixelSize: string | number, paletteSize?: string | number, dither?: string, outline?: string }} options - Pixel-art processing options.
+ * @returns {{ bytes: Buffer, metadata: { width: number, height: number, paletteSize: number, actualPaletteSize: number, dither: string, outline: string, outlineBoostedPixels: number } }} Processed PNG bytes and summary metadata.
  */
 export function processPixelArtPngBytes(bytes, options) {
   const target = parsePixelSize(options?.pixelSize);
@@ -477,9 +582,18 @@ export function processPixelArtPngBytes(bytes, options) {
 
   const paletteSize = parsePaletteSize(options?.paletteSize);
   const dither = parseDither(options?.dither);
+  const outline = parseOutline(options?.outline);
   const { width, height, bitDepth, colorType, channels, pixels } = decodePng(bytes);
   const resized = resizeArea(pixels, width, height, target.width, target.height, channels);
   const quantized = quantizePixels(resized, target.width, target.height, channels, paletteSize, dither);
+  const outlined = boostOutlineContrast(
+    quantized.pixels,
+    target.width,
+    target.height,
+    channels,
+    quantized.palette,
+    outline
+  );
 
   return {
     bytes: encodePng({
@@ -487,7 +601,7 @@ export function processPixelArtPngBytes(bytes, options) {
       height: target.height,
       bitDepth,
       colorType,
-      pixels: quantized.pixels,
+      pixels: outlined.pixels,
       channels
     }),
     metadata: {
@@ -495,7 +609,9 @@ export function processPixelArtPngBytes(bytes, options) {
       height: target.height,
       paletteSize,
       actualPaletteSize: quantized.palette.length,
-      dither
+      dither,
+      outline,
+      outlineBoostedPixels: outlined.boostedPixels
     }
   };
 }

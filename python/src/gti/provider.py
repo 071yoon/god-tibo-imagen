@@ -138,6 +138,7 @@ class PrivateCodexProvider:
         pixel_mode: bool = False,
         pixel_palette: str | int | None = None,
         pixel_dither: str | None = None,
+        pixel_outline: str | None = None,
         preview_upscale: str | int | None = None,
         dry_run: bool = False,
         debug: bool = False,
@@ -154,6 +155,7 @@ class PrivateCodexProvider:
                 pixel_size=pixel_size or 128,
                 pixel_palette=pixel_palette or 24,
                 pixel_dither=pixel_dither,
+                pixel_outline=pixel_outline,
             )
             if pixel_mode
             else prompt
@@ -238,6 +240,7 @@ class PrivateCodexProvider:
             pixel_mode=pixel_mode,
             pixel_palette=pixel_palette,
             pixel_dither=pixel_dither,
+            pixel_outline=pixel_outline,
             preview_upscale=preview_upscale,
             return_metadata=True,
         )

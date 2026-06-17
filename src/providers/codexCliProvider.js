@@ -157,7 +157,7 @@ async function runCodexPreflight(execImpl) {
  * Create a provider that uses `codex exec` as the image-generation fallback.
  *
  * @param {{ generatedImagesDir: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
  */
 export function createCodexCliProvider(config) {
   return {
@@ -174,6 +174,7 @@ export function createCodexCliProvider(config) {
       pixelMode = false,
       pixelPalette,
       pixelDither,
+      pixelOutline,
       previewUpscale
     }) {
       if (images && images.length > 0) {
@@ -197,7 +198,7 @@ export function createCodexCliProvider(config) {
       const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-imagegen-cli-'));
       const lastMessagePath = path.join(tempDir, 'last.txt');
       const effectivePrompt = pixelMode
-        ? buildPixelArtPrompt({ prompt, pixelSize: pixelSize || 128, pixelPalette, pixelDither })
+        ? buildPixelArtPrompt({ prompt, pixelSize: pixelSize || 128, pixelPalette, pixelDither, pixelOutline })
         : prompt;
       const wrappedPrompt = buildWrappedPrompt(effectivePrompt);
       const startedAtMs = Date.now();
@@ -246,7 +247,8 @@ export function createCodexCliProvider(config) {
         const processed = processPixelArtPngBytes(bytes, {
           pixelSize: pixelSize || '128',
           paletteSize: pixelPalette,
-          dither: pixelDither
+          dither: pixelDither,
+          outline: pixelOutline
         });
         await fs.writeFile(outputPath, processed.bytes);
         pixelMetadata = processed.metadata;

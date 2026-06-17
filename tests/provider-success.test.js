@@ -175,11 +175,13 @@ test('private provider applies pixel mode prompt constraints and preview output'
     pixelMode: true,
     pixelPalette: 8,
     pixelDither: 'none',
+    pixelOutline: 'strong',
     previewUpscale: 2,
     fetchImpl: async (_url, options) => {
       const body = JSON.parse(options.body);
       assert.match(body.input[0].content[0].text, /Pixel-art production constraints/);
       assert.match(body.input[0].content[0].text, /Avoid double pixels/);
+      assert.match(body.input[0].content[0].text, /strong readable 1-pixel dark outline/);
       return createFetchResponse({
         ok: true,
         status: 200,
@@ -195,6 +197,7 @@ test('private provider applies pixel mode prompt constraints and preview output'
   assert.equal(result.savedPath, outputPath);
   assert.equal(result.previewPath, path.join(dir, 'pixel-mode.preview.png'));
   assert.equal(result.pixelMetadata.paletteSize, 8);
+  assert.equal(result.pixelMetadata.outline, 'strong');
   const preview = await fs.readFile(result.previewPath);
   assert.equal(preview.readUInt32BE(16), 8);
   assert.equal(preview.readUInt32BE(20), 8);

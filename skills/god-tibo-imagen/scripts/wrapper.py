@@ -38,6 +38,7 @@ def main() -> int:
     parser.add_argument("--pixel-mode", action="store_true", help="Apply pixel-art prompt constraints and palette cleanup")
     parser.add_argument("--pixel-palette", help="Pixel-mode palette size, 2-256 colors")
     parser.add_argument("--pixel-dither", help="Pixel-mode dithering: none, bayer2, or bayer4")
+    parser.add_argument("--pixel-outline", help="Pixel-mode outline contrast: none, soft, or strong")
     parser.add_argument("--preview-upscale", help="Write a nearest-neighbor .preview.png scaled by this factor")
     parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
     parser.add_argument("--auth-file", help="Path to Codex auth.json")
@@ -78,6 +79,8 @@ def main() -> int:
         gen_kwargs["pixel_palette"] = args.pixel_palette
     if args.pixel_dither:
         gen_kwargs["pixel_dither"] = args.pixel_dither
+    if args.pixel_outline:
+        gen_kwargs["pixel_outline"] = args.pixel_outline
     if args.preview_upscale:
         gen_kwargs["preview_upscale"] = args.preview_upscale
     if args.output:

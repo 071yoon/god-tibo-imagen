@@ -48,6 +48,8 @@ def test_save_image_can_apply_pixel_mode_and_preview(tmp_path):
         "paletteSize": 4,
         "actualPaletteSize": 1,
         "dither": "bayer2",
+        "outline": "soft",
+        "outlineBoostedPixels": 0,
     }
     data = output.read_bytes()
     assert int.from_bytes(data[16:20], "big") == 4
@@ -55,6 +57,22 @@ def test_save_image_can_apply_pixel_mode_and_preview(tmp_path):
     preview = (tmp_path / "pixel-mode.preview.png").read_bytes()
     assert int.from_bytes(preview[16:20], "big") == 12
     assert int.from_bytes(preview[20:24], "big") == 12
+
+
+def test_save_image_supports_strong_pixel_outline_metadata(tmp_path):
+    output = tmp_path / "pixel-outline.png"
+    result = save_image(
+        result_base64=PNG_B64,
+        output_path=output,
+        pixel_size=4,
+        pixel_mode=True,
+        pixel_palette=4,
+        pixel_outline="strong",
+        return_metadata=True,
+    )
+
+    assert result["pixelMetadata"]["outline"] == "strong"
+    assert isinstance(result["pixelMetadata"]["outlineBoostedPixels"], int)
 
 
 def test_save_image_rejects_data_url(tmp_path):

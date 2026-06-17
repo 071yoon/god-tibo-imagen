@@ -10,13 +10,14 @@ export function resizePngBytes(bytes: Buffer, pixelSize: string | number | null 
  * Process a PNG into a constrained pixel-art output.
  *
  * @param {Buffer} bytes - Source PNG bytes.
- * @param {{ pixelSize: string | number, paletteSize?: string | number, dither?: string }} options - Pixel-art processing options.
- * @returns {{ bytes: Buffer, metadata: { width: number, height: number, paletteSize: number, actualPaletteSize: number, dither: string } }} Processed PNG bytes and summary metadata.
+ * @param {{ pixelSize: string | number, paletteSize?: string | number, dither?: string, outline?: string }} options - Pixel-art processing options.
+ * @returns {{ bytes: Buffer, metadata: { width: number, height: number, paletteSize: number, actualPaletteSize: number, dither: string, outline: string, outlineBoostedPixels: number } }} Processed PNG bytes and summary metadata.
  */
 export function processPixelArtPngBytes(bytes: Buffer, options: {
     pixelSize: string | number;
     paletteSize?: string | number;
     dither?: string;
+    outline?: string;
 }): {
     bytes: Buffer;
     metadata: {
@@ -25,6 +26,8 @@ export function processPixelArtPngBytes(bytes: Buffer, options: {
         paletteSize: number;
         actualPaletteSize: number;
         dither: string;
+        outline: string;
+        outlineBoostedPixels: number;
     };
 };
 /**

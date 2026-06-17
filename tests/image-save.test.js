@@ -49,7 +49,9 @@ test('saveImage can apply pixel mode palette cleanup and write a preview', async
     height: 4,
     paletteSize: 4,
     actualPaletteSize: 1,
-    dither: 'bayer2'
+    dither: 'bayer2',
+    outline: 'soft',
+    outlineBoostedPixels: 0
   });
 
   const bytes = await fs.readFile(outputPath);
@@ -58,6 +60,23 @@ test('saveImage can apply pixel mode palette cleanup and write a preview', async
   const preview = await fs.readFile(result.previewPath);
   assert.equal(preview.readUInt32BE(16), 12);
   assert.equal(preview.readUInt32BE(20), 12);
+});
+
+test('saveImage supports strong pixel outline contrast metadata', async () => {
+  const dir = await makeTempDir();
+  const outputPath = path.join(dir, 'pixel-outline.png');
+  const result = await saveImage({
+    resultBase64: PNG_BASE64,
+    outputPath,
+    pixelSize: 4,
+    pixelMode: true,
+    pixelPalette: 4,
+    pixelOutline: 'strong',
+    returnMetadata: true
+  });
+
+  assert.equal(result.pixelMetadata.outline, 'strong');
+  assert.equal(typeof result.pixelMetadata.outlineBoostedPixels, 'number');
 });
 
 test('saveImage rejects data URLs', async () => {

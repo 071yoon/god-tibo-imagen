@@ -18,7 +18,7 @@ description: >-
 
 Generate images from text prompts (and optional reference images) by running
 the `gti` CLI. For pixel art, prefer `--pixel-mode` with `--pixel-size`,
-`--pixel-palette`, and `--preview-upscale`.
+`--pixel-palette`, `--pixel-outline`, and `--preview-upscale`.
 
 ## How to invoke
 
@@ -70,7 +70,7 @@ gti --prompt "32x32 pixel art sword sprite, transparent background" --size 1024x
 
 ### Pixel mode
 
-Use `--pixel-mode` for serious pixel-art output. It adds prompt constraints for crisp square pixels, limited palettes, no anti-aliasing, clean outlines, no double pixels, and smoother stair-step lines, then applies palette cleanup after generation.
+Use `--pixel-mode` for serious pixel-art output. It adds prompt constraints for crisp square pixels, limited palettes, no anti-aliasing, clean outlines, no double pixels, and smoother stair-step lines, then applies palette cleanup and optional outline contrast after generation.
 
 ```bash
 gti --prompt "cute Korean Joseon-era scholar programmer coding on a laptop" \
@@ -78,6 +78,7 @@ gti --prompt "cute Korean Joseon-era scholar programmer coding on a laptop" \
   --pixel-mode \
   --pixel-size 128 \
   --pixel-palette 24 \
+  --pixel-outline strong \
   --preview-upscale 4 \
   --output ./scholar-programmer.png
 ```
