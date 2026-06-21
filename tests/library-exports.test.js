@@ -15,6 +15,7 @@ const expectedExports = [
   'summarizeEvents',
   'extractImageGeneration',
   'saveImage',
+  'animatePixelPngToGif',
   'resizePngBytes',
   'processPixelArtPngBytes',
   'upscalePngBytes',

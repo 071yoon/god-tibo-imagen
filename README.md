@@ -162,6 +162,29 @@ gti --provider codex-cli \
   --output ./potion.png
 ```
 
+### Animated GIF from a pixel PNG
+
+Use `gti-animate` when you already have a pixel PNG and want a lightweight
+animation. It preserves the pixel grid and alpha mask, then writes a GIF with
+subtle palette shifts or small sprite-part motion.
+
+```bash
+gti-animate \
+  --input ./potion.png \
+  --output ./potion.gif \
+  --frames 8 \
+  --delay 10 \
+  --effect shimmer
+```
+
+Effects:
+
+- `shimmer` subtly shifts hue and brightness for item glints
+- `pulse` changes brightness evenly for idle breathing/glow
+- `hue` leans colors back and forth for magical variants
+- `typing` alternates small hand/upper-body pixel shifts for keyboard sprites
+- `salt` keeps every pixel in place but adds subtle per-pixel color variation
+
 ### Provider modes
 
 ```bash

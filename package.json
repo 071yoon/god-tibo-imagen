@@ -15,7 +15,8 @@
   },
   "types": "./types/index.d.ts",
   "bin": {
-    "gti": "./src/cli/generate.js"
+    "gti": "./src/cli/generate.js",
+    "gti-animate": "./src/cli/animateGif.js"
   },
   "files": [
     "src/",
@@ -28,6 +29,7 @@
     "build": "npm run check && npm run build:types",
     "build:types": "tsc --project tsconfig.types.json",
     "generate": "node src/cli/generate.js",
+    "animate": "node src/cli/animateGif.js",
     "smoke:live": "bash scripts/smoke-live.sh",
     "sync-version": "node scripts/sync-version.js"
   },

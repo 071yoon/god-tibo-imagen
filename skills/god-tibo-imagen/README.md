@@ -83,6 +83,17 @@ python skills/god-tibo-imagen/scripts/wrapper.py \
 The wrapper prints `savedPath`, and pixel-mode runs may also print
 `previewPath` plus `pixelMetadata`.
 
+## Animated GIF
+
+Use `gti-animate` to turn an existing pixel PNG into an animated GIF:
+
+```bash
+gti-animate --input ./sprite.png --output ./sprite.gif --frames 8 --delay 10 --effect shimmer
+```
+
+Use `--effect typing` for keyboard or laptop sprites. Use `--effect salt` when
+the pixel positions must stay fixed.
+
 ## License
 
 Same as the parent repository.

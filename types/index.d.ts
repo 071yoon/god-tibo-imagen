@@ -2,6 +2,7 @@ export { loadCodexSession } from "./auth/loadCodexSession.js";
 export { validateCodexSession } from "./auth/validateSession.js";
 export { extractImageGeneration } from "./codex/extractImageGeneration.js";
 export { saveImage } from "./fs/saveImage.js";
+export { animatePixelPngToGif } from "./fs/gifAnimate.js";
 export { buildPixelArtPrompt } from "./pixel/prompt.js";
 export { createProvider } from "./providers/createProvider.js";
 export { createPrivateCodexProvider } from "./providers/privateCodexProvider.js";

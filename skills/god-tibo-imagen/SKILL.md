@@ -132,3 +132,23 @@ gti --prompt "flat blue square icon" --dry-run
 `gti` saves the PNG to `--output` and prints a JSON summary that includes
 `savedPath`. Pixel-mode runs may also include `previewPath` and
 `pixelMetadata`. Report those back to the user when present.
+
+## Animate an Existing Pixel PNG
+
+When the user already has a pixel PNG and asks for a lightweight animation or
+GIF, run `gti-animate`. It preserves the sprite's pixel grid and alpha mask,
+then creates frames with subtle palette shifts or small sprite-part motion.
+
+```bash
+gti-animate \
+  --input ./sprite.png \
+  --output ./sprite.gif \
+  --frames 8 \
+  --delay 10 \
+  --effect shimmer
+```
+
+Use `shimmer` for item glints, `pulse` for idle glow/breathing, `hue` for
+magical color cycling, `typing` for laptop or keyboard sprites, and `salt` when
+the sprite must not move but should feel subtly alive through similar-color
+pixel variation. Report the output GIF path and frame count.
