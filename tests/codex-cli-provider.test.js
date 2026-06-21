@@ -126,7 +126,7 @@ test('codex-cli provider applies pixel mode and preview output', async () => {
 
   assert.match(wrappedPrompt, /Pixel-art production constraints/);
   assert.match(wrappedPrompt, /Avoid double pixels/);
-  assert.match(wrappedPrompt, /strong readable 1-pixel dark outline/);
+  assert.match(wrappedPrompt, /single-pixel dark outline/);
   assert.equal(result.previewPath, path.join(dir, 'pixel-mode.preview.png'));
   assert.equal(result.pixelMetadata.paletteSize, 8);
   assert.equal(result.pixelMetadata.outline, 'strong');

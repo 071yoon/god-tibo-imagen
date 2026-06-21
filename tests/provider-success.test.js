@@ -181,7 +181,7 @@ test('private provider applies pixel mode prompt constraints and preview output'
       const body = JSON.parse(options.body);
       assert.match(body.input[0].content[0].text, /Pixel-art production constraints/);
       assert.match(body.input[0].content[0].text, /Avoid double pixels/);
-      assert.match(body.input[0].content[0].text, /strong readable 1-pixel dark outline/);
+      assert.match(body.input[0].content[0].text, /single-pixel dark outline/);
       return createFetchResponse({
         ok: true,
         status: 200,

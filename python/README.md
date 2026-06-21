@@ -78,7 +78,7 @@ result = client.generate_image(
     pixel_mode=True,
     pixel_size=128,
     pixel_palette=24,
-    pixel_outline="strong",
+    pixel_outline="soft",
     preview_upscale=4,
 )
 print(result.saved_path)

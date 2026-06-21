@@ -20,6 +20,28 @@ Generate images from text prompts (and optional reference images) by running
 the `gti` CLI. For pixel art, prefer `--pixel-mode` with `--pixel-size`,
 `--pixel-palette`, `--pixel-outline`, and `--preview-upscale`.
 
+## Pixel art creation workflow
+
+For new sprites, icons, tiles, or other pixel-art images:
+
+1. Identify the target canvas size first. Use the user's requested dimensions
+   exactly, such as `128x128`, `64x64`, or `32x32`.
+2. Treat `--pixel-size` as the final native pixel-art canvas. Do not rely on
+   high-resolution image dimensions to imply the sprite size.
+3. Keep the prompt focused on one clear subject, a readable silhouette, limited
+   palette, crisp square pixels, flat color clusters, and no text.
+4. Use `--pixel-outline soft` by default for icons and sprites. This produces
+   an appropriately readable 1-pixel outline without heavy borders.
+5. Use `--pixel-outline strong` only when the sprite has poor contrast or must
+   read against busy backgrounds. Even then, ask for single-pixel outlines and
+   avoid chunky or doubled borders.
+6. For transparent-background sprites, explicitly avoid gray halos, drop
+   shadows, glow, ambient occlusion, and anti-aliased fringe pixels outside the
+   silhouette. Ask for dark local outline colors such as dark brown instead of
+   neutral gray.
+7. Use `--preview-upscale 4` for 128px outputs so the user can inspect the
+   generated sprite without changing the real saved size.
+
 ## How to invoke
 
 Use the `gti` command. It is installed globally via
@@ -78,7 +100,7 @@ gti --prompt "cute Korean Joseon-era scholar programmer coding on a laptop" \
   --pixel-mode \
   --pixel-size 128 \
   --pixel-palette 24 \
-  --pixel-outline strong \
+  --pixel-outline soft \
   --preview-upscale 4 \
   --output ./scholar-programmer.png
 ```

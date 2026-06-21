@@ -21,12 +21,13 @@ function assertStandardBase64(value) {
 /**
  * Decode a base64 PNG payload and save it to disk.
  *
- * @param {{ resultBase64: string, outputPath: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number, returnMetadata?: boolean }} options - Base64 image payload and destination path.
- * @returns {Promise<string | { savedPath: string, previewPath: string | null, pixelMetadata: unknown }>} The written output path by default, or output details when returnMetadata is true.
+ * @param {{ resultBase64: string, outputPath: string, rawOutputPath?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number, returnMetadata?: boolean }} options - Base64 image payload and destination path.
+ * @returns {Promise<string | { savedPath: string, rawPath: string | null, previewPath: string | null, pixelMetadata: unknown }>} The written output path by default, or output details when returnMetadata is true.
  */
 export async function saveImage({
   resultBase64,
   outputPath,
+  rawOutputPath,
   pixelSize,
   pixelMode = false,
   pixelPalette,
@@ -42,6 +43,13 @@ export async function saveImage({
     const error = new Error('Decoded image payload is empty.');
     error.code = 'EMPTY_IMAGE_PAYLOAD';
     throw error;
+  }
+
+  let rawPath = null;
+  if (rawOutputPath) {
+    await fs.mkdir(path.dirname(rawOutputPath), { recursive: true });
+    await fs.writeFile(rawOutputPath, bytes);
+    rawPath = rawOutputPath;
   }
 
   let outputBytes = bytes;
@@ -69,6 +77,6 @@ export async function saveImage({
     await fs.writeFile(previewPath, upscalePngBytes(outputBytes, previewUpscale));
   }
 
-  const result = { savedPath: outputPath, previewPath, pixelMetadata };
+  const result = { savedPath: outputPath, rawPath, previewPath, pixelMetadata };
   return returnMetadata ? result : outputPath;
 }

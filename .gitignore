@@ -2,6 +2,7 @@
 smoke-output.png
 generated-*.png
 duck-surf-cool.png
+/generated/
 
 # Test/scratch image artifacts at repo root
 /out.png

@@ -121,7 +121,7 @@ async function writeDebugArtifacts({
  * Create a provider that talks directly to the private Codex HTTP backend.
  *
  * @param {{ baseUrl: string, authFile: string, installationIdFile: string, defaultOriginator: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model: string, outputPath: string, dryRun?: boolean, debug?: boolean, debugDir?: string, fetchImpl?: typeof fetch, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, warnings: string[], responseId: string | null, sessionId?: string, savedPath?: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: string | null, request: unknown, response?: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model: string, outputPath: string, rawOutputPath?: string, dryRun?: boolean, debug?: boolean, debugDir?: string, fetchImpl?: typeof fetch, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, warnings: string[], responseId: string | null, sessionId?: string, savedPath?: string, rawPath?: string | null, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: string | null, request: unknown, response?: unknown }> }} Provider implementation.
  */
 export function createPrivateCodexProvider(config) {
   return {
@@ -129,6 +129,7 @@ export function createPrivateCodexProvider(config) {
       prompt,
       model,
       outputPath,
+      rawOutputPath,
       dryRun = false,
       debug = false,
       debugDir,
@@ -245,6 +246,7 @@ export function createPrivateCodexProvider(config) {
       const saved = await saveImage({
         resultBase64: generation.resultBase64,
         outputPath,
+        rawOutputPath,
         pixelSize,
         pixelMode,
         pixelPalette,
@@ -260,6 +262,7 @@ export function createPrivateCodexProvider(config) {
         responseId: parsed.responseId,
         sessionId: request.sessionId,
         savedPath: saved.savedPath,
+        rawPath: saved.rawPath,
         previewPath: saved.previewPath,
         pixelMetadata: saved.pixelMetadata,
         revisedPrompt: generation.revisedPrompt,

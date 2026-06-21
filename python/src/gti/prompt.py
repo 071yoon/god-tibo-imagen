@@ -16,11 +16,11 @@ def build_pixel_art_prompt(
         raise make_error(f"Invalid pixel outline: {pixel_outline}. Supported values: none, soft, strong.")
 
     if outline == "strong":
-        outline_line = "- Use a strong readable 1-pixel dark outline, high-contrast silhouette, and darker inner contour lines around the face, hands, clothing, props, and key objects."
+        outline_line = "- Use a high-contrast but still single-pixel dark outline on the outer silhouette, with sparse darker inner contour pixels only where they clarify important shapes."
     elif outline == "none":
         outline_line = "- Do not add heavy outlines; keep edges readable with clean color separation."
     else:
-        outline_line = "- Use a clear readable 1-pixel dark outline and darker inner contour lines where they improve silhouette clarity."
+        outline_line = "- Use a moderate readable 1-pixel dark outline on the outer silhouette and only a few darker inner contour pixels where they improve clarity."
     dither_line = (
         "- Use subtle ordered dithering only in shadows, backgrounds, or material texture; never dither skin, faces, or the main focal surface."
         if pixel_dither and pixel_dither != "none"
@@ -40,6 +40,10 @@ def build_pixel_art_prompt(
             "- Straight lines must keep a consistent stair-step slope.",
             "- Curves must use gradually increasing or decreasing pixel run lengths.",
             outline_line,
+            "- Do not use chunky black borders, multi-pixel cartoon outlines, doubled outlines, or thick strokes around small details.",
+            "- Keep the outside of the silhouette fully transparent; do not add gray halos, drop shadows, glow, ambient occlusion, or anti-aliased fringe pixels.",
+            "- Use hue-shifted darker local colors for shading instead of neutral gray shadow pixels.",
+            "- Keep the outer outline color consistent, preferably dark brown or a darker local color, not gray.",
             "- Avoid pale low-contrast outlines on the main subject.",
             "- Use blocky cel shading and clustered highlights.",
             dither_line,

@@ -219,7 +219,7 @@ def test_client_generate_image_applies_pixel_mode_prompt_and_preview(tmp_path):
         text = body["input"][0]["content"][0]["text"]
         assert "Pixel-art production constraints" in text
         assert "Avoid double pixels" in text
-        assert "strong readable 1-pixel dark outline" in text
+        assert "single-pixel dark outline" in text
         return httpx.Response(200, headers={"content-type": "text/event-stream"}, text=fixture_text("success.sse"))
 
     client = Client(

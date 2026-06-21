@@ -185,23 +185,143 @@ function resizeArea(pixels, sourceWidth, sourceHeight, targetWidth, targetHeight
       const sourceX1 = Math.max(sourceX0 + 1, Math.ceil(((x + 1) * sourceWidth) / targetWidth));
       const sums = new Array(channels).fill(0);
       let count = 0;
+      let alphaWeightedCount = 0;
 
       for (let sy = sourceY0; sy < Math.min(sourceY1, sourceHeight); sy += 1) {
         for (let sx = sourceX0; sx < Math.min(sourceX1, sourceWidth); sx += 1) {
           const sourceOffset = (sy * sourceWidth + sx) * channels;
-          for (let channel = 0; channel < channels; channel += 1) {
-            sums[channel] += pixels[sourceOffset + channel];
+          if (channels === 4) {
+            const alpha = pixels[sourceOffset + 3];
+            sums[0] += pixels[sourceOffset] * alpha;
+            sums[1] += pixels[sourceOffset + 1] * alpha;
+            sums[2] += pixels[sourceOffset + 2] * alpha;
+            sums[3] += alpha;
+            alphaWeightedCount += alpha;
+          } else {
+            for (let channel = 0; channel < channels; channel += 1) {
+              sums[channel] += pixels[sourceOffset + channel];
+            }
           }
           count += 1;
         }
       }
 
       const targetOffset = (y * targetWidth + x) * channels;
-      for (let channel = 0; channel < channels; channel += 1) {
-        output[targetOffset + channel] = Math.round(sums[channel] / count);
+      if (channels === 4) {
+        if (alphaWeightedCount > 0) {
+          output[targetOffset] = Math.round(sums[0] / alphaWeightedCount);
+          output[targetOffset + 1] = Math.round(sums[1] / alphaWeightedCount);
+          output[targetOffset + 2] = Math.round(sums[2] / alphaWeightedCount);
+        }
+        output[targetOffset + 3] = Math.round(sums[3] / count);
+      } else {
+        for (let channel = 0; channel < channels; channel += 1) {
+          output[targetOffset + channel] = Math.round(sums[channel] / count);
+        }
       }
     }
   }
+  return output;
+}
+
+function toRgba(pixels, width, height, channels) {
+  if (channels === 4) {
+    return Buffer.from(pixels);
+  }
+
+  const output = Buffer.alloc(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    const sourceOffset = index * channels;
+    const targetOffset = index * 4;
+    if (channels === 1 || channels === 2) {
+      output[targetOffset] = pixels[sourceOffset];
+      output[targetOffset + 1] = pixels[sourceOffset];
+      output[targetOffset + 2] = pixels[sourceOffset];
+      output[targetOffset + 3] = channels === 2 ? pixels[sourceOffset + 1] : 255;
+    } else {
+      output[targetOffset] = pixels[sourceOffset];
+      output[targetOffset + 1] = pixels[sourceOffset + 1];
+      output[targetOffset + 2] = pixels[sourceOffset + 2];
+      output[targetOffset + 3] = 255;
+    }
+  }
+  return output;
+}
+
+function collectBackgroundSamples(pixels, width, height) {
+  const counts = new Map();
+  const add = (x, y) => {
+    const offset = (y * width + x) * 4;
+    const key = `${Math.round(pixels[offset] / 8) * 8},${Math.round(pixels[offset + 1] / 8) * 8},${Math.round(pixels[offset + 2] / 8) * 8}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    add(x, 0);
+    add(x, height - 1);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    add(0, y);
+    add(width - 1, y);
+  }
+
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 8)
+    .map(([key]) => key.split(',').map(Number));
+}
+
+function isBackgroundLike(pixels, offset, samples) {
+  if (pixels[offset + 3] < 32) {
+    return true;
+  }
+
+  const color = [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+  return samples.some((sample) => colorDistanceSquared(color, sample) <= 28 * 28);
+}
+
+function removeEdgeConnectedBackground(pixels, width, height) {
+  const output = Buffer.from(pixels);
+  const samples = collectBackgroundSamples(output, width, height);
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  const enqueue = (x, y) => {
+    const index = y * width + x;
+    if (visited[index]) {
+      return;
+    }
+    visited[index] = 1;
+    const offset = index * 4;
+    if (!isBackgroundLike(output, offset, samples)) {
+      return;
+    }
+    queue.push([x, y]);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const [x, y] = queue[cursor];
+    const offset = (y * width + x) * 4;
+    output[offset] = 0;
+    output[offset + 1] = 0;
+    output[offset + 2] = 0;
+    output[offset + 3] = 0;
+
+    if (x > 0) enqueue(x - 1, y);
+    if (x < width - 1) enqueue(x + 1, y);
+    if (y > 0) enqueue(x, y - 1);
+    if (y < height - 1) enqueue(x, y + 1);
+  }
+
   return output;
 }
 
@@ -421,6 +541,7 @@ function boostOutlineContrast(pixels, width, height, channels, palette, outline)
         ? [pixels[offset], pixels[offset], pixels[offset]]
         : [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
       const colorLum = luminance(color);
+      let touchesTransparentEdge = channels !== 4;
       let maxDistance = 0;
       let brightestNeighborLum = colorLum;
       const neighbors = [
@@ -432,10 +553,12 @@ function boostOutlineContrast(pixels, width, height, channels, palette, outline)
 
       for (const [nx, ny] of neighbors) {
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+          touchesTransparentEdge = true;
           continue;
         }
         const neighborOffset = (ny * width + nx) * channels;
         if ((channels === 2 && pixels[neighborOffset + 1] < 128) || (channels === 4 && pixels[neighborOffset + 3] < 128)) {
+          touchesTransparentEdge = true;
           continue;
         }
         const neighbor = channels === 1 || channels === 2
@@ -443,6 +566,10 @@ function boostOutlineContrast(pixels, width, height, channels, palette, outline)
           : [pixels[neighborOffset], pixels[neighborOffset + 1], pixels[neighborOffset + 2]];
         maxDistance = Math.max(maxDistance, colorDistanceSquared(color, neighbor));
         brightestNeighborLum = Math.max(brightestNeighborLum, luminance(neighbor));
+      }
+
+      if (!touchesTransparentEdge) {
+        continue;
       }
 
       if (maxDistance < threshold * threshold || colorLum > brightestNeighborLum - darkGap) {
@@ -583,14 +710,15 @@ export function processPixelArtPngBytes(bytes, options) {
   const paletteSize = parsePaletteSize(options?.paletteSize);
   const dither = parseDither(options?.dither);
   const outline = parseOutline(options?.outline);
-  const { width, height, bitDepth, colorType, channels, pixels } = decodePng(bytes);
-  const resized = resizeArea(pixels, width, height, target.width, target.height, channels);
-  const quantized = quantizePixels(resized, target.width, target.height, channels, paletteSize, dither);
+  const { width, height, bitDepth, channels, pixels } = decodePng(bytes);
+  const rgba = removeEdgeConnectedBackground(toRgba(pixels, width, height, channels), width, height);
+  const resized = resizeArea(rgba, width, height, target.width, target.height, 4);
+  const quantized = quantizePixels(resized, target.width, target.height, 4, paletteSize, dither);
   const outlined = boostOutlineContrast(
     quantized.pixels,
     target.width,
     target.height,
-    channels,
+    4,
     quantized.palette,
     outline
   );
@@ -600,9 +728,9 @@ export function processPixelArtPngBytes(bytes, options) {
       width: target.width,
       height: target.height,
       bitDepth,
-      colorType,
+      colorType: 6,
       pixels: outlined.pixels,
-      channels
+      channels: 4
     }),
     metadata: {
       width: target.width,

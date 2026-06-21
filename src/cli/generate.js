@@ -21,6 +21,7 @@ function parseArgs(argv) {
     dryRun: false,
     debug: false,
     output: null,
+    rawOutput: null,
     prompt: null,
     model: null,
     codexHome: null,
@@ -52,6 +53,10 @@ function parseArgs(argv) {
         break;
       case '--output':
         parsed.output = next;
+        index += 1;
+        break;
+      case '--raw-output':
+        parsed.rawOutput = next;
         index += 1;
         break;
       case '--model':
@@ -182,6 +187,7 @@ Usage:
 Options:
   --prompt <text>               Required prompt text
   --output <path>               Output PNG path
+  --raw-output <path>           Also save the unprocessed backend PNG before pixel resizing/cleanup
   --model <name>                Model name (default: CODEX_IMAGEGEN_MODEL or gpt-5.4)
   --provider <name>             Provider: private-codex | codex-cli | auto
   --image <path>                Input image path (can be used multiple times)
@@ -225,6 +231,7 @@ async function main() {
   }
   const provider = createProvider(config);
   const outputPath = path.resolve(args.output || config.defaultOutputPath);
+  const rawOutputPath = args.rawOutput ? path.resolve(args.rawOutput) : undefined;
 
   const images = args.images.length > 0
     ? await Promise.all(args.images.map((img) => readImageAsDataUrl(img)))
@@ -235,6 +242,7 @@ async function main() {
     prompt: args.prompt,
     model: args.model || config.defaultModel,
     outputPath,
+    rawOutputPath,
     dryRun: args.dryRun,
     debug: args.debug,
     debugDir: args.debugDir ? path.resolve(args.debugDir) : args.debug ? path.resolve('.debug-codex-imagegen') : null,
@@ -260,6 +268,7 @@ async function main() {
   console.log(JSON.stringify({
     provider: result.provider || config.provider,
     savedPath: result.savedPath,
+    rawPath: result.rawPath,
     previewPath: result.previewPath,
     pixelMetadata: result.pixelMetadata,
     responseId: result.responseId,

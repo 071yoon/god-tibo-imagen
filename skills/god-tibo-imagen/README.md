@@ -75,7 +75,7 @@ python skills/god-tibo-imagen/scripts/wrapper.py \
   --pixel-mode \
   --pixel-size 128 \
   --pixel-palette 24 \
-  --pixel-outline strong \
+  --pixel-outline soft \
   --preview-upscale 4 \
   --output ./scholar-programmer.png
 ```

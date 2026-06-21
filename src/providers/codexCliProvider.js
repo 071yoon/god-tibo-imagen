@@ -157,7 +157,7 @@ async function runCodexPreflight(execImpl) {
  * Create a provider that uses `codex exec` as the image-generation fallback.
  *
  * @param {{ generatedImagesDir: string }} config - Runtime configuration.
- * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
+ * @returns {{ generateImage: (args: { prompt: string, model?: string, outputPath: string, rawOutputPath?: string, debug?: boolean, debugDir?: string, execImpl?: typeof runCommand, images?: string[], size?: string, pixelSize?: string | number, pixelMode?: boolean, pixelPalette?: string | number, pixelDither?: string, pixelOutline?: string, previewUpscale?: string | number }) => Promise<{ mode: string, provider: string, warnings: string[], responseId: null, sessionId: string | null, savedPath: string, rawPath?: string | null, previewPath?: string | null, pixelMetadata?: unknown, revisedPrompt: null, request: unknown, response: unknown }> }} Provider implementation.
  */
 export function createCodexCliProvider(config) {
   return {
@@ -165,6 +165,7 @@ export function createCodexCliProvider(config) {
       prompt,
       model,
       outputPath,
+      rawOutputPath,
       debug = false,
       debugDir,
       execImpl = runCommand,
@@ -240,6 +241,12 @@ export function createCodexCliProvider(config) {
       }
 
       await ensureParentDir(outputPath);
+      let rawPath = null;
+      if (rawOutputPath) {
+        await ensureParentDir(rawOutputPath);
+        await fs.copyFile(generated.path, rawOutputPath);
+        rawPath = rawOutputPath;
+      }
       let previewPath = null;
       let pixelMetadata = null;
       if (pixelMode) {
@@ -296,6 +303,7 @@ export function createCodexCliProvider(config) {
         responseId: null,
         sessionId,
         savedPath: outputPath,
+        rawPath,
         previewPath,
         pixelMetadata,
         revisedPrompt: null,
